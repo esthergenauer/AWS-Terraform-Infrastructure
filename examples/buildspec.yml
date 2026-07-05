@@ -1,0 +1,32 @@
+# Copy this file to the root of your backend GitHub repository as buildspec.yml
+# (Assignment Step 2 — Python backend; not used from the Terraform infrastructure repo)
+
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "APP_ENV=$APP_ENV FRONTEND_BRANCH=$FRONTEND_BRANCH"
+      - python --version
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+
+  build:
+    commands:
+      - echo "Pulling frontend from branch $FRONTEND_BRANCH"
+      - git clone --depth 1 --branch "$FRONTEND_BRANCH" "$FRONTEND_REPO_URL" frontend-src || true
+      - |
+        if [ -d frontend-src ]; then
+          rm -rf static/frontend 2>/dev/null || true
+          mkdir -p static/frontend
+          cp -R frontend-src/dist/* static/frontend/ 2>/dev/null || cp -R frontend-src/build/* static/frontend/ 2>/dev/null || true
+        fi
+
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+
+artifacts:
+  files:
+    - "**/*"
+  base-directory: .

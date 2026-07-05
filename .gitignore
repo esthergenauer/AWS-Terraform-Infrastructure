@@ -1,0 +1,33 @@
+# --- Secrets & sensitive values (never commit) ---
+secrets.auto.tfvars
+secrets.tfvars
+terraform.tfvars
+*.auto.tfvars
+!*.auto.tfvars.example
+!terraform.tfvars.example
+
+# --- Terraform ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# --- Environment files ---
+.env
+.env.*
+!.env.example
