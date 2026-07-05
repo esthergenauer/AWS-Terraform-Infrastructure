@@ -6,8 +6,8 @@ variable "environment" {
   type = string
 
   validation {
-    condition     = contains(["dev", "prod"], var.environment)
-    error_message = "environment must be dev or prod."
+    condition     = contains(["staging", "prod"], var.environment)
+    error_message = "environment must be staging or prod."
   }
 }
 
@@ -17,7 +17,7 @@ variable "source_repo" {
 }
 
 variable "source_branch" {
-  description = "Pipeline source branch: dev (dev env) or main (prod env)"
+  description = "Pipeline source branch: staging (staging env) or main (prod env)"
   type        = string
 }
 

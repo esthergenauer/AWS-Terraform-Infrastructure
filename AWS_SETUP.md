@@ -43,7 +43,7 @@ The backend repo must contain `buildspec.yml` at the path configured in `buildsp
 
 | Environment | Pipeline source branch | CodeBuild `FRONTEND_BRANCH` |
 |-------------|------------------------|-----------------------------|
-| Dev | `dev` | `staging` |
+| Staging | `staging` | `staging` |
 | Prod | `main` | `main` |
 
 ## 4. S3 artifact bucket name
@@ -51,8 +51,8 @@ The backend repo must contain `buildspec.yml` at the path configured in `buildsp
 Choose a globally unique name per environment. Terraform creates the bucket.
 
 ```
-# Dev example
-pipeline_artifact_bucket_name = "shuli-dev-artifacts-eunorth"
+# Staging example
+pipeline_artifact_bucket_name = "shuli-staging-artifacts-eunorth"
 
 # Prod — must be a different name
 pipeline_artifact_bucket_name = "shuli-prod-artifacts-eunorth"
@@ -82,7 +82,7 @@ db_password = "<strong-password>"
 
 ## Example `secrets.auto.tfvars`
 
-See `environments/dev/secrets.auto.tfvars.example`.
+See `environments/staging/secrets.auto.tfvars.example`.
 
 ## Optional: extra Beanstalk environment variables
 
@@ -98,6 +98,6 @@ additional_eb_env_vars = {
 
 1. `aws configure`
 2. Create and approve the GitHub connection
-3. Fill `environments/dev/secrets.auto.tfvars`
-4. `cd environments/dev` → `terraform init` → `terraform plan` → `terraform apply`
+3. Fill `environments/staging/secrets.auto.tfvars`
+4. `cd environments/staging` → `terraform init` → `terraform plan` → `terraform apply`
 5. Repeat for `environments/prod` with prod-specific values

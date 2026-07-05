@@ -1,4 +1,4 @@
-# Dev environment — deployment order: network → SG → bastion → RDS → EB → pipeline
+# Staging environment — deployment order: network → SG → bastion → RDS → EB → pipeline
 # Project-specific values: variables.tf defaults and secrets.auto.tfvars
 
 terraform {
@@ -17,7 +17,7 @@ provider "aws" {
 }
 
 locals {
-  environment = "dev"
+  environment = "staging"
   tags = merge(var.common_tags, { Environment = local.environment })
 }
 
@@ -57,11 +57,11 @@ resource "aws_security_group" "beanstalk" {
   tags = merge(local.tags, { Name = "${var.eb_environment_name}-sg" })
 }
 
-# Dev only: SSM bastion for port-forwarding to RDS (see README).
+# Staging only: SSM bastion for port-forwarding to RDS (see README).
 module "bastion" {
   source = "../../modules/bastion"
 
-  name      = "${var.project_name}-dev"
+  name      = "${var.project_name}-staging"
   vpc_id    = module.network.vpc_id
   subnet_id = module.network.public_subnet_ids[0]
 
@@ -96,7 +96,7 @@ module "eb" {
   environment_name    = var.eb_environment_name
   solution_stack_name = var.eb_solution_stack_name
   instance_type       = var.eb_instance_type
-  environment_type    = "SingleInstance" # Dev: no load balancer (per company guide)
+  environment_type    = "SingleInstance" # Staging: no load balancer
 
   vpc_id                      = module.network.vpc_id
   security_group_id           = aws_security_group.beanstalk.id

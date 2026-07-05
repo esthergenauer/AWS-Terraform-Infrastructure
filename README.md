@@ -13,12 +13,12 @@ CodePipeline pulls application code from **sbl-backend** only. This infrastructu
 
 ## Architecture
 
-| Component | Dev | Prod |
+| Component | Staging | Prod |
 |-----------|-----|------|
 | VPC | `10.1.0.0/16` | `10.2.0.0/16` |
 | RDS | `db.t4g.micro` | `db.t4g.small`, Multi-AZ |
 | Elastic Beanstalk | `t4g.micro`, single instance | `t4g.small`, ALB, 2–4 instances |
-| Pipeline source branch | `dev` | `main` |
+| Pipeline source branch | `staging` | `main` |
 | Pipeline frontend branch (CodeBuild) | `staging` | `main` |
 | Bastion (SSM) | yes | no |
 
@@ -30,17 +30,17 @@ modules/
 ├── rds/        PostgreSQL (private subnets, db-sg)
 ├── eb/         Elastic Beanstalk (backend + frontend)
 ├── pipeline/   CodePipeline → CodeBuild → Beanstalk
-└── bastion/    SSM bastion for local DB access (Dev only)
+└── bastion/    SSM bastion for local DB access (Staging only)
 
 environments/
-├── dev/
+├── staging/
 └── prod/
 ```
 
 ## Deployment
 
 ```powershell
-cd environments\dev
+cd environments\staging
 copy secrets.auto.tfvars.example secrets.auto.tfvars
 # Edit secrets.auto.tfvars — see AWS_SETUP.md
 terraform init
@@ -62,7 +62,7 @@ Repeat for `environments\prod` with separate secrets and bucket name.
 
 Sensitive values belong in `secrets.auto.tfvars` only (listed in `.gitignore`).
 
-## Local DB access (Dev)
+## Local DB access (Staging)
 
 ```powershell
 aws ssm start-session --target <bastion_instance_id> `

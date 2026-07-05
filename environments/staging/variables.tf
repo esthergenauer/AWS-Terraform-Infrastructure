@@ -20,7 +20,7 @@ variable "common_tags" {
 variable "network_name" {
   description = "Prefix for VPC and subnet names in this environment"
   type        = string
-  default     = "shuli-dev"
+  default     = "shuli-staging"
 }
 
 variable "vpc_cidr" {
@@ -46,7 +46,7 @@ variable "availability_zones" {
 
 variable "rds_name" {
   type    = string
-  default = "shuli-dev-db"
+  default = "shuli-staging-db"
 }
 
 variable "rds_instance_class" {
@@ -66,7 +66,7 @@ variable "rds_engine_version" {
 
 variable "db_name" {
   type    = string
-  default = "shuli_dev"
+  default = "shuli_staging"
 }
 
 variable "db_username" {
@@ -86,7 +86,7 @@ variable "eb_application_name" {
 
 variable "eb_environment_name" {
   type    = string
-  default = "shuli-dev"
+  default = "shuli-staging"
 }
 
 variable "eb_solution_stack_name" {
@@ -105,7 +105,7 @@ variable "additional_eb_env_vars" {
 
 variable "pipeline_name" {
   type    = string
-  default = "shuli-dev-pipeline"
+  default = "shuli-staging-pipeline"
 }
 
 variable "pipeline_source_repo" {
@@ -114,13 +114,13 @@ variable "pipeline_source_repo" {
 }
 
 variable "pipeline_source_branch" {
-  description = "Git branch that triggers the Dev pipeline (company guide: dev)"
+  description = "Git branch that triggers the Staging pipeline"
   type        = string
-  default     = "dev"
+  default     = "staging"
 }
 
 variable "pipeline_frontend_branch" {
-  description = "Frontend branch pulled during CodeBuild in Dev (company guide: staging)"
+  description = "Frontend branch pulled during CodeBuild in Staging"
   type        = string
   default     = "staging"
 }
