@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StartPortForwardingToRdsViaBastion",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:StartSession"
+      ],
+      "Resource": [
+        "arn:aws:ssm:eu-north-1::document/AWS-StartPortForwardingSessionToRemoteHost",
+        "arn:aws:ec2:eu-north-1:036318543774:instance/i-05893e16c1b698e8e"
+      ]
+    },
+    {
+      "Sid": "ManageOwnSessions",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:TerminateSession",
+        "ssm:ResumeSession",
+        "ssm:DescribeSessions",
+        "ssm:GetConnectionStatus"
+      ],
+      "Resource": "arn:aws:ssm:eu-north-1:036318543774:session/*"
+    }
+  ]
+}

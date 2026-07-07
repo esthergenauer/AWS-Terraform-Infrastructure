@@ -9,6 +9,43 @@ locals {
   environment_variables = merge(local.base_env_vars, var.additional_environment_variables)
 }
 
+resource "aws_iam_role" "ec2" {
+  name = "${var.environment_name}-eb-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "eb_web_tier" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier"
+}
+
+resource "aws_iam_role_policy_attachment" "eb_worker_tier" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier"
+}
+
+resource "aws_iam_role_policy_attachment" "eb_multicontainer_docker" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker"
+}
+
+resource "aws_iam_instance_profile" "ec2" {
+  name = "${var.environment_name}-eb-ec2-profile"
+  role = aws_iam_role.ec2.name
+
+  tags = var.tags
+}
+
 resource "aws_elastic_beanstalk_application" "this" {
   name        = var.application_name
   description = var.description
@@ -53,6 +90,12 @@ resource "aws_elastic_beanstalk_environment" "this" {
     namespace = "aws:autoscaling:launchconfiguration"
     name      = "InstanceType"
     value     = var.instance_type
+  }
+
+  setting {
+    namespace = "aws:autoscaling:launchconfiguration"
+    name      = "IamInstanceProfile"
+    value     = aws_iam_instance_profile.ec2.name
   }
 
   setting {

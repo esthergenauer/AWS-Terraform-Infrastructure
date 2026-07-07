@@ -7,7 +7,7 @@ resource "aws_db_subnet_group" "this" {
 
 resource "aws_security_group" "db_sg" {
   name        = "db-sg"
-  description = "PostgreSQL — access from Beanstalk and optional bastion only"
+  description = "PostgreSQL access from Beanstalk and optional bastion only"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -26,6 +26,17 @@ resource "aws_security_group" "db_sg" {
       to_port         = 5432
       protocol        = "tcp"
       security_groups = [var.bastion_security_group_id]
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = var.developer_access_cidr_blocks
+    content {
+      description = "PostgreSQL from developer IP"
+      from_port   = 5432
+      to_port     = 5432
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
     }
   }
 
@@ -55,7 +66,7 @@ resource "aws_db_instance" "this" {
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.db_sg.id]
-  publicly_accessible    = false
+  publicly_accessible    = var.publicly_accessible
 
   multi_az                = var.multi_az
   backup_retention_period = var.backup_retention_period

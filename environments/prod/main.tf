@@ -15,27 +15,28 @@ provider "aws" {
   region = var.aws_region
 }
 
-locals {
-  environment = "prod"
-  tags = merge(var.common_tags, { Environment = local.environment })
+data "aws_vpc" "default" {
+  default = true
 }
 
-module "network" {
-  source = "../../modules/network"
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
 
-  name                 = var.network_name
-  vpc_cidr             = var.vpc_cidr
-  public_subnet_cidrs  = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
-  availability_zones   = var.availability_zones
-
-  tags = local.tags
+locals {
+  environment = "prod"
+  tags        = merge(var.common_tags, { Environment = local.environment })
+  vpc_id      = data.aws_vpc.default.id
+  subnet_ids  = data.aws_subnets.default.ids
 }
 
 resource "aws_security_group" "beanstalk" {
   name        = "${var.eb_environment_name}-sg"
   description = "Elastic Beanstalk instances"
-  vpc_id      = module.network.vpc_id
+  vpc_id      = local.vpc_id
 
   ingress {
     description = "HTTP"
@@ -67,8 +68,8 @@ module "rds" {
   source = "../../modules/rds"
 
   name                 = var.rds_name
-  vpc_id               = module.network.vpc_id
-  subnet_ids           = module.network.private_subnet_ids
+  vpc_id               = local.vpc_id
+  subnet_ids           = local.subnet_ids
   eb_security_group_id = aws_security_group.beanstalk.id
 
   instance_class          = var.rds_instance_class
@@ -94,10 +95,10 @@ module "eb" {
   instance_type       = var.eb_instance_type
   environment_type    = "LoadBalanced"
 
-  vpc_id                      = module.network.vpc_id
+  vpc_id                      = local.vpc_id
   security_group_id           = aws_security_group.beanstalk.id
-  instance_subnet_ids         = module.network.public_subnet_ids
-  elb_subnet_ids              = module.network.public_subnet_ids
+  instance_subnet_ids         = local.subnet_ids
+  elb_subnet_ids              = local.subnet_ids
   associate_public_ip_address = true
 
   min_instances      = var.eb_min_instances

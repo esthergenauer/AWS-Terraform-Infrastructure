@@ -17,33 +17,6 @@ variable "common_tags" {
   }
 }
 
-variable "network_name" {
-  description = "Prefix for VPC and subnet names in this environment"
-  type        = string
-  default     = "shuli-staging"
-}
-
-variable "vpc_cidr" {
-  description = "VPC CIDR — use a unique range per project/environment"
-  type        = string
-  default     = "10.1.0.0/16"
-}
-
-variable "public_subnet_cidrs" {
-  type    = list(string)
-  default = ["10.1.1.0/24", "10.1.2.0/24"]
-}
-
-variable "private_subnet_cidrs" {
-  type    = list(string)
-  default = ["10.1.10.0/24", "10.1.11.0/24"]
-}
-
-variable "availability_zones" {
-  type    = list(string)
-  default = []
-}
-
 variable "rds_name" {
   type    = string
   default = "shuli-staging-db"
@@ -77,6 +50,12 @@ variable "db_username" {
 variable "db_password" {
   type      = string
   sensitive = true
+}
+
+variable "developer_access_cidr_blocks" {
+  description = "Add each developer public IP as x.x.x.x/32 after they report connection timeout"
+  type        = list(string)
+  default     = []
 }
 
 variable "eb_application_name" {

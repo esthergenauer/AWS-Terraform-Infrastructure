@@ -1,5 +1,5 @@
 output "vpc_id" {
-  value = module.network.vpc_id
+  value = data.aws_vpc.default.id
 }
 
 output "rds_endpoint" {

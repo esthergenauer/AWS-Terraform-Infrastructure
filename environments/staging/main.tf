@@ -1,4 +1,4 @@
-# Staging environment — deployment order: network → SG → bastion → RDS → EB → pipeline
+# Staging environment — deployment order: default VPC → SG → bastion → RDS → EB → pipeline
 # Project-specific values: variables.tf defaults and secrets.auto.tfvars
 
 terraform {
@@ -16,28 +16,29 @@ provider "aws" {
   region = var.aws_region
 }
 
-locals {
-  environment = "staging"
-  tags = merge(var.common_tags, { Environment = local.environment })
+data "aws_vpc" "default" {
+  default = true
 }
 
-module "network" {
-  source = "../../modules/network"
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
 
-  name                 = var.network_name
-  vpc_cidr             = var.vpc_cidr
-  public_subnet_cidrs  = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
-  availability_zones   = var.availability_zones
-
-  tags = local.tags
+locals {
+  environment = "staging"
+  tags        = merge(var.common_tags, { Environment = local.environment })
+  vpc_id      = data.aws_vpc.default.id
+  subnet_ids  = data.aws_subnets.default.ids
 }
 
 # Beanstalk SG is created here (not in the EB module) to break the RDS ↔ EB dependency cycle.
 resource "aws_security_group" "beanstalk" {
   name        = "${var.eb_environment_name}-sg"
   description = "Elastic Beanstalk instances"
-  vpc_id      = module.network.vpc_id
+  vpc_id      = local.vpc_id
 
   ingress {
     description = "HTTP"
@@ -62,8 +63,8 @@ module "bastion" {
   source = "../../modules/bastion"
 
   name      = "${var.project_name}-staging"
-  vpc_id    = module.network.vpc_id
-  subnet_id = module.network.public_subnet_ids[0]
+  vpc_id    = local.vpc_id
+  subnet_id = local.subnet_ids[0]
 
   tags = local.tags
 }
@@ -72,19 +73,21 @@ module "rds" {
   source = "../../modules/rds"
 
   name                      = var.rds_name
-  vpc_id                    = module.network.vpc_id
-  subnet_ids                = module.network.private_subnet_ids
-  eb_security_group_id      = aws_security_group.beanstalk.id
-  bastion_security_group_id = module.bastion.security_group_id
+  vpc_id                    = local.vpc_id
+  subnet_ids                = local.subnet_ids
+  eb_security_group_id         = aws_security_group.beanstalk.id
+  bastion_security_group_id    = module.bastion.security_group_id
+  developer_access_cidr_blocks = var.developer_access_cidr_blocks
+  publicly_accessible          = length(var.developer_access_cidr_blocks) > 0
 
-  instance_class        = var.rds_instance_class
-  allocated_storage     = var.rds_allocated_storage
-  engine_version        = var.rds_engine_version
-  db_name               = var.db_name
-  username              = var.db_username
-  password              = var.db_password
-  multi_az              = false
-  skip_final_snapshot   = true
+  instance_class      = var.rds_instance_class
+  allocated_storage   = var.rds_allocated_storage
+  engine_version      = var.rds_engine_version
+  db_name             = var.db_name
+  username            = var.db_username
+  password            = var.db_password
+  multi_az            = false
+  skip_final_snapshot = true
 
   tags = local.tags
 }
@@ -98,9 +101,9 @@ module "eb" {
   instance_type       = var.eb_instance_type
   environment_type    = "SingleInstance" # Staging: no load balancer
 
-  vpc_id                      = module.network.vpc_id
+  vpc_id                      = local.vpc_id
   security_group_id           = aws_security_group.beanstalk.id
-  instance_subnet_ids         = module.network.public_subnet_ids
+  instance_subnet_ids         = local.subnet_ids
   associate_public_ip_address = true
 
   min_instances = 1

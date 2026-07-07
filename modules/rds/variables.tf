@@ -17,9 +17,21 @@ variable "eb_security_group_id" {
 }
 
 variable "bastion_security_group_id" {
-  description = "Optional bastion SG for Dev local DB access via port forwarding"
+  description = "Optional bastion SG for Dev local access via port forwarding"
   type        = string
   default     = null
+}
+
+variable "developer_access_cidr_blocks" {
+  description = "Developer public IPs allowed to connect to PostgreSQL (staging)"
+  type        = list(string)
+  default     = []
+}
+
+variable "publicly_accessible" {
+  description = "Allow direct internet access to RDS when developer CIDRs are configured"
+  type        = bool
+  default     = false
 }
 
 variable "instance_class" {
