@@ -104,6 +104,18 @@ variable "pipeline_frontend_branch" {
   default     = "staging"
 }
 
+variable "pipeline_frontend_repo" {
+  description = "Frontend GitHub repository (owner/repo) cloned during CodeBuild"
+  type        = string
+  default     = "StarUP-Solutions/sbl-frontend"
+}
+
+variable "github_token_secret_arn" {
+  description = "Optional Secrets Manager ARN with GitHub PAT for private frontend clone"
+  type        = string
+  default     = null
+}
+
 variable "codestar_connection_arn" {
   type = string
 }

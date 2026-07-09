@@ -1,10 +1,14 @@
 locals {
-  base_env_vars = {
-    DB_HOST     = var.db_host
-    DB_NAME     = var.db_name
-    DB_USER     = var.db_user
-    DB_PASSWORD = var.db_password
-  }
+  base_env_vars = merge(
+    {
+      DB_HOST       = var.db_host
+      DB_NAME       = var.db_name
+      DB_USER       = var.db_user
+      DB_SECRET_ARN = var.db_secret_arn
+      DB_PORT       = "5432"
+    },
+    var.db_password != null ? { DB_PASSWORD = var.db_password } : {}
+  )
 
   environment_variables = merge(local.base_env_vars, var.additional_environment_variables)
 }
@@ -37,6 +41,20 @@ resource "aws_iam_role_policy_attachment" "eb_worker_tier" {
 resource "aws_iam_role_policy_attachment" "eb_multicontainer_docker" {
   role       = aws_iam_role.ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker"
+}
+
+resource "aws_iam_role_policy" "eb_read_db_secret" {
+  name = "${var.environment_name}-read-db-secret"
+  role = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = var.db_secret_arn
+    }]
+  })
 }
 
 resource "aws_iam_instance_profile" "ec2" {

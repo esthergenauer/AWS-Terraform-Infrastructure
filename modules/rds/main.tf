@@ -61,7 +61,7 @@ resource "aws_db_instance" "this" {
 
   db_name  = var.db_name
   username = var.username
-  password = var.password
+  password = local.master_password
   port     = 5432
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
@@ -74,4 +74,9 @@ resource "aws_db_instance" "this" {
   skip_final_snapshot     = var.skip_final_snapshot
 
   tags = merge(var.tags, { Name = var.name })
+
+  lifecycle {
+    # Never rotate RDS password via Terraform on existing databases.
+    ignore_changes = [password]
+  }
 }

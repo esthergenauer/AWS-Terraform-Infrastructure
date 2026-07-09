@@ -1,30 +1,43 @@
 # Copy this file to the root of your backend GitHub repository as buildspec.yml
-# (Assignment Step 2 — Python backend; not used from the Terraform infrastructure repo)
 
 version: 0.2
 
 phases:
+  install:
+    runtime-versions:
+      python: 3.12
+      nodejs: 20
+
   pre_build:
     commands:
-      - echo "APP_ENV=$APP_ENV FRONTEND_BRANCH=$FRONTEND_BRANCH"
-      - python --version
+      - echo "=== DEV auto-deploy | backend=$SOURCE_BRANCH frontend=$FRONTEND_BRANCH ==="
       - pip install --upgrade pip
-      - pip install -r requirements.txt
+      - pip install -r requirements.txt boto3
+      - python scripts/sync_eb_env.py
 
   build:
     commands:
-      - echo "Pulling frontend from branch $FRONTEND_BRANCH"
-      - git clone --depth 1 --branch "$FRONTEND_BRANCH" "$FRONTEND_REPO_URL" frontend-src || true
+      - echo "Building frontend from $FRONTEND_REPO ($FRONTEND_BRANCH)"
       - |
-        if [ -d frontend-src ]; then
-          rm -rf static/frontend 2>/dev/null || true
-          mkdir -p static/frontend
-          cp -R frontend-src/dist/* static/frontend/ 2>/dev/null || cp -R frontend-src/build/* static/frontend/ 2>/dev/null || true
+        if [ -n "$GITHUB_TOKEN" ]; then
+          FRONTEND_GIT_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${FRONTEND_REPO}.git"
+        else
+          FRONTEND_GIT_URL="https://github.com/${FRONTEND_REPO}.git"
         fi
+        git clone --depth 1 --branch "$FRONTEND_BRANCH" "$FRONTEND_GIT_URL" frontend-src
+      - cd frontend-src
+      - npm ci
+      - export VITE_API_URL=""
+      - npm run build
+      - cd ..
+      - rm -rf static/frontend
+      - mkdir -p static/frontend
+      - cp -R frontend-src/dist/* static/frontend/
+      - echo "Frontend bundle copied to static/frontend"
 
   post_build:
     commands:
-      - echo "Build completed on $(date)"
+      - echo "Build completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 artifacts:
   files:

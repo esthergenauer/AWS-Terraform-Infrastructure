@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -68,6 +72,7 @@ module "rds" {
   source = "../../modules/rds"
 
   name                 = var.rds_name
+  environment          = local.environment
   vpc_id               = local.vpc_id
   subnet_ids           = local.subnet_ids
   eb_security_group_id = aws_security_group.beanstalk.id
@@ -105,10 +110,11 @@ module "eb" {
   max_instances      = var.eb_max_instances
   load_balancer_type = "application"
 
-  db_host     = module.rds.db_instance_address
-  db_name     = var.db_name
-  db_user     = var.db_username
-  db_password = var.db_password
+  db_host       = module.rds.db_instance_address
+  db_name       = var.db_name
+  db_user       = var.db_username
+  db_secret_arn = module.rds.db_secret_arn
+  db_password   = var.db_password
 
   additional_environment_variables = var.additional_eb_env_vars
 

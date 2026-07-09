@@ -26,6 +26,18 @@ variable "frontend_branch" {
   type        = string
 }
 
+variable "frontend_repo" {
+  description = "GitHub owner/repo for frontend clone in CodeBuild"
+  type        = string
+  default     = "StarUP-Solutions/sbl-frontend"
+}
+
+variable "github_token_secret_arn" {
+  description = "Optional Secrets Manager ARN (plain-text PAT) for private frontend clone"
+  type        = string
+  default     = null
+}
+
 variable "codestar_connection_arn" {
   type = string
 }

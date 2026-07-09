@@ -83,9 +83,16 @@ variable "db_user" {
   type = string
 }
 
+variable "db_secret_arn" {
+  description = "Secrets Manager ARN for RDS credentials"
+  type        = string
+}
+
 variable "db_password" {
-  type      = string
-  sensitive = true
+  description = "Optional legacy EB env var. Keep set during migration so existing apps keep working."
+  type        = string
+  sensitive   = true
+  default     = null
 }
 
 variable "additional_environment_variables" {

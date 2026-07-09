@@ -61,9 +61,17 @@ variable "username" {
   type = string
 }
 
+variable "environment" {
+  description = "staging | prod — controls Secrets Manager recovery window"
+  type        = string
+  default     = "staging"
+}
+
 variable "password" {
-  type      = string
-  sensitive = true
+  description = "Existing RDS master password. Keep current value for live DBs; omit only for brand-new databases."
+  type        = string
+  sensitive   = true
+  default     = null
 }
 
 variable "multi_az" {

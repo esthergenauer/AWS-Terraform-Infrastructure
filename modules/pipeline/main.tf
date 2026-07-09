@@ -63,8 +63,36 @@ resource "aws_iam_role_policy" "codebuild" {
           aws_s3_bucket.artifacts.arn,
           "${aws_s3_bucket.artifacts.arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticbeanstalk:DescribeConfigurationSettings",
+          "elasticbeanstalk:DescribeEnvironments",
+          "elasticbeanstalk:UpdateEnvironment"
+        ]
+        Resource = [
+          local.eb_application_arn,
+          local.eb_environment_arn
+        ]
       }
     ]
+  })
+}
+
+resource "aws_iam_role_policy" "codebuild_github_token" {
+  count = var.github_token_secret_arn != null ? 1 : 0
+
+  name = "${var.name}-codebuild-github-token"
+  role = aws_iam_role.codebuild.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = var.github_token_secret_arn
+    }]
   })
 }
 
@@ -98,8 +126,37 @@ resource "aws_codebuild_project" "this" {
     }
 
     environment_variable {
+      name  = "FRONTEND_REPO"
+      value = var.frontend_repo
+    }
+
+    environment_variable {
       name  = "SOURCE_BRANCH"
       value = var.source_branch
+    }
+
+    environment_variable {
+      name  = "EB_APPLICATION_NAME"
+      value = var.eb_application_name
+    }
+
+    environment_variable {
+      name  = "EB_ENVIRONMENT_NAME"
+      value = var.eb_environment_name
+    }
+
+    environment_variable {
+      name  = "AWS_REGION"
+      value = local.region
+    }
+
+    dynamic "environment_variable" {
+      for_each = var.github_token_secret_arn != null ? [1] : []
+      content {
+        name      = "GITHUB_TOKEN"
+        type      = "SECRETS_MANAGER"
+        value     = var.github_token_secret_arn
+      }
     }
   }
 
@@ -250,4 +307,18 @@ resource "aws_codepipeline" "this" {
   }
 
   tags = merge(var.tags, { Name = var.name })
+
+  trigger {
+    provider_type = "CodeStarSourceConnection"
+
+    git_configuration {
+      source_action_name = "Source"
+
+      push {
+        branches {
+          includes = [var.source_branch]
+        }
+      }
+    }
+  }
 }

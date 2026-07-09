@@ -17,3 +17,13 @@ output "security_group_id" {
 output "db_port" {
   value = aws_db_instance.this.port
 }
+
+output "db_secret_arn" {
+  value       = aws_secretsmanager_secret.db_credentials.arn
+  description = "ARN of the RDS credentials secret in Secrets Manager"
+}
+
+output "db_secret_name" {
+  value       = aws_secretsmanager_secret.db_credentials.name
+  description = "Secrets Manager secret name"
+}

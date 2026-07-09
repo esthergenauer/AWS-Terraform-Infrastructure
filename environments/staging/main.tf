@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -72,9 +76,10 @@ module "bastion" {
 module "rds" {
   source = "../../modules/rds"
 
-  name                      = var.rds_name
-  vpc_id                    = local.vpc_id
-  subnet_ids                = local.subnet_ids
+  name                         = var.rds_name
+  environment                  = local.environment
+  vpc_id                       = local.vpc_id
+  subnet_ids                   = local.subnet_ids
   eb_security_group_id         = aws_security_group.beanstalk.id
   bastion_security_group_id    = module.bastion.security_group_id
   developer_access_cidr_blocks = var.developer_access_cidr_blocks
@@ -109,10 +114,11 @@ module "eb" {
   min_instances = 1
   max_instances = 1
 
-  db_host     = module.rds.db_instance_address
-  db_name     = var.db_name
-  db_user     = var.db_username
-  db_password = var.db_password
+  db_host       = module.rds.db_instance_address
+  db_name       = var.db_name
+  db_user       = var.db_username
+  db_secret_arn = module.rds.db_secret_arn
+  db_password   = var.db_password
 
   additional_environment_variables = var.additional_eb_env_vars
 
@@ -129,6 +135,8 @@ module "pipeline" {
   source_repo             = var.pipeline_source_repo
   source_branch           = var.pipeline_source_branch
   frontend_branch         = var.pipeline_frontend_branch
+  frontend_repo           = var.pipeline_frontend_repo
+  github_token_secret_arn = var.github_token_secret_arn
   codestar_connection_arn = var.codestar_connection_arn
   artifact_bucket_name    = var.pipeline_artifact_bucket_name
   buildspec_path          = var.buildspec_path
