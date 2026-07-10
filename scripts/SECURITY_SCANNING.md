@@ -8,7 +8,7 @@ If either scanner fails, the build **stops** and a Slack/Discord notification is
 
 ## What developers see when a scan fails
 
-> Build Failed due to Security Violation. A hardcoded secret or critical vulnerability was detected. Please check the pipeline logs, remove the secret/vulnerability, move it to env.shared/Secrets Manager, and push again.
+> Production/Dev Build Failed: Security Policy Violation Detected. A hardcoded secret or a critical package vulnerability was caught during the pipeline scan. Please check the CI execution logs, remove the secret/vulnerability, move configurations to environment variables, and push again.
 
 The message includes the CodeBuild build ID and environment (`staging` / `prod`).
 
