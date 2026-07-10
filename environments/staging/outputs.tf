@@ -71,3 +71,9 @@ output "monitoring_alarm_names" {
     aws_cloudwatch_metric_alarm.rds_low_storage.alarm_name,
   ])
 }
+
+# --- Grafana Cloud (see grafana_iam.tf) ---
+output "grafana_cloud_iam_role_arn" {
+  description = "IAM role ARN to paste into Grafana Cloud AWS CloudWatch integration"
+  value       = aws_iam_role.grafana_cloud.arn
+}
