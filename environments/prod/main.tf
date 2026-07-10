@@ -68,14 +68,27 @@ resource "aws_security_group" "beanstalk" {
   tags = merge(local.tags, { Name = "${var.eb_environment_name}-sg" })
 }
 
+# SSM bastion — private RDS access for developers (no public RDS endpoint).
+module "bastion" {
+  source = "../../modules/bastion"
+
+  name      = "${var.project_name}-prod"
+  vpc_id    = local.vpc_id
+  subnet_id = local.subnet_ids[0]
+
+  tags = local.tags
+}
+
 module "rds" {
   source = "../../modules/rds"
 
-  name                 = var.rds_name
-  environment          = local.environment
-  vpc_id               = local.vpc_id
-  subnet_ids           = local.subnet_ids
-  eb_security_group_id = aws_security_group.beanstalk.id
+  name                      = var.rds_name
+  environment               = local.environment
+  vpc_id                    = local.vpc_id
+  subnet_ids                = local.subnet_ids
+  eb_security_group_id      = aws_security_group.beanstalk.id
+  bastion_security_group_id = module.bastion.security_group_id
+  publicly_accessible       = false
 
   instance_class          = var.rds_instance_class
   allocated_storage       = var.rds_allocated_storage
@@ -91,6 +104,8 @@ module "rds" {
   tags = local.tags
 }
 
+data "aws_caller_identity" "current" {}
+
 module "eb" {
   source = "../../modules/eb"
 
@@ -99,6 +114,9 @@ module "eb" {
   solution_stack_name = var.eb_solution_stack_name
   instance_type       = var.eb_instance_type
   environment_type    = "LoadBalanced"
+
+  aws_region     = var.aws_region
+  aws_account_id = data.aws_caller_identity.current.account_id
 
   vpc_id                      = local.vpc_id
   security_group_id           = aws_security_group.beanstalk.id
@@ -138,6 +156,10 @@ module "pipeline" {
 
   eb_application_name = module.eb.application_name
   eb_environment_name = module.eb.environment_name
+  eb_service_role_arn = module.eb.service_role_arn
+
+  github_token_secret_arn    = var.github_token_secret_arn
+  security_alert_secret_name = var.security_alert_secret_name
 
   tags = local.tags
 

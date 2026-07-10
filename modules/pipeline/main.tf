@@ -10,6 +10,16 @@ locals {
   eb_environment_arn = "arn:aws:elasticbeanstalk:${local.region}:${local.account_id}:environment/${var.eb_application_name}/${var.eb_environment_name}"
   eb_version_arn     = "arn:aws:elasticbeanstalk:${local.region}:${local.account_id}:applicationversion/${var.eb_application_name}/*"
   eb_managed_bucket  = "arn:aws:s3:::elasticbeanstalk-${local.region}-${local.account_id}/*"
+
+  eb_platform_assets_bucket = "arn:aws:s3:::elasticbeanstalk-platform-assets-${local.region}"
+  eb_managed_bucket_root    = "arn:aws:s3:::elasticbeanstalk-${local.region}-${local.account_id}"
+
+  eb_deploy_s3_resources = [
+    local.eb_platform_assets_bucket,
+    "${local.eb_platform_assets_bucket}/*",
+    local.eb_managed_bucket_root,
+    "${local.eb_managed_bucket_root}/*"
+  ]
 }
 
 resource "aws_s3_bucket" "artifacts" {
@@ -23,6 +33,120 @@ resource "aws_s3_bucket_versioning" "artifacts" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+resource "aws_kms_key" "artifacts" {
+  description = "Encrypt CodePipeline artifacts for ${var.name}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnableRootPermissions"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
+        Action    = "kms:*"
+        Resource  = "*"
+      },
+      {
+        Sid    = "AllowElasticBeanstalkServiceDecrypt"
+        Effect = "Allow"
+        Principal = {
+          AWS = compact([
+            var.eb_service_role_arn,
+            "arn:aws:iam::${local.account_id}:role/aws-service-role/elasticbeanstalk.amazonaws.com/AWSServiceRoleForElasticBeanstalk"
+          ])
+        }
+        Action   = ["kms:Decrypt", "kms:DescribeKey", "kms:GenerateDataKey"]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowElasticBeanstalkAndCloudFormationServices"
+        Effect = "Allow"
+        Principal = {
+          Service = [
+            "elasticbeanstalk.amazonaws.com",
+            "cloudformation.amazonaws.com"
+          ]
+        }
+        Action   = ["kms:Decrypt", "kms:DescribeKey", "kms:GenerateDataKey"]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowPipelineRolesUseKey"
+        Effect = "Allow"
+        Principal = {
+          AWS = [
+            aws_iam_role.pipeline.arn,
+            aws_iam_role.codebuild.arn
+          ]
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = merge(var.tags, { Name = "${var.name}-artifacts-key" })
+}
+
+resource "aws_kms_alias" "artifacts" {
+  name          = "alias/${var.name}-artifacts"
+  target_key_id = aws_kms_key.artifacts.key_id
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# EB must read CodePipeline build artifacts to process application versions.
+resource "aws_s3_bucket_policy" "artifacts_eb_read" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowElasticBeanstalkServiceReadArtifacts"
+        Effect = "Allow"
+        Principal = {
+          AWS = compact([
+            var.eb_service_role_arn,
+            "arn:aws:iam::${local.account_id}:role/aws-service-role/elasticbeanstalk.amazonaws.com/AWSServiceRoleForElasticBeanstalk",
+            aws_iam_role.pipeline.arn
+          ])
+        }
+        Action   = ["s3:GetObject", "s3:GetObjectVersion", "s3:ListBucket"]
+        Resource = [
+          aws_s3_bucket.artifacts.arn,
+          "${aws_s3_bucket.artifacts.arn}/*"
+        ]
+      },
+      {
+        Sid    = "AllowElasticBeanstalkServicePrincipalReadArtifacts"
+        Effect = "Allow"
+        Principal = {
+          Service = "elasticbeanstalk.amazonaws.com"
+        }
+        Action   = ["s3:GetObject", "s3:GetObjectVersion", "s3:ListBucket"]
+        Resource = [
+          aws_s3_bucket.artifacts.arn,
+          "${aws_s3_bucket.artifacts.arn}/*"
+        ]
+      }
+    ]
+  })
 }
 
 resource "aws_iam_role" "codebuild" {
@@ -69,11 +193,44 @@ resource "aws_iam_role_policy" "codebuild" {
         Action = [
           "elasticbeanstalk:DescribeConfigurationSettings",
           "elasticbeanstalk:DescribeEnvironments",
-          "elasticbeanstalk:UpdateEnvironment"
+          "elasticbeanstalk:UpdateEnvironment",
+          "elasticbeanstalk:CreateApplicationVersion",
+          "elasticbeanstalk:DescribeApplicationVersions"
         ]
         Resource = [
           local.eb_application_arn,
-          local.eb_environment_arn
+          local.eb_environment_arn,
+          local.eb_version_arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:Describe*",
+          "autoscaling:Describe*"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = ["cloudformation:*"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:ListBucket"
+        ]
+        Resource = local.eb_deploy_s3_resources
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:*"]
+        Resource = [
+          local.eb_managed_bucket_root,
+          "${local.eb_managed_bucket_root}/*"
         ]
       }
     ]
@@ -96,12 +253,29 @@ resource "aws_iam_role_policy" "codebuild_github_token" {
   })
 }
 
+resource "aws_iam_role_policy" "codebuild_security_alert" {
+  count = var.security_alert_secret_name != null ? 1 : 0
+
+  name = "${var.name}-codebuild-security-alert"
+  role = aws_iam_role.codebuild.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${var.security_alert_secret_name}*"
+    }]
+  })
+}
+
 resource "aws_codebuild_project" "this" {
   name         = local.build_project_name
   service_role = aws_iam_role.codebuild.arn
 
   artifacts {
-    type = "CODEPIPELINE"
+    type                = "CODEPIPELINE"
+    encryption_disabled = true
   }
 
   environment {
@@ -158,6 +332,14 @@ resource "aws_codebuild_project" "this" {
         value     = var.github_token_secret_arn
       }
     }
+
+    dynamic "environment_variable" {
+      for_each = var.security_alert_secret_name != null ? [1] : []
+      content {
+        name  = "SECURITY_ALERT_SECRET_NAME"
+        value = var.security_alert_secret_name
+      }
+    }
   }
 
   source {
@@ -191,8 +373,13 @@ resource "aws_iam_role_policy" "pipeline" {
     Version = "2012-10-17"
     Statement = [
       {
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketVersioning"]
+        Resource = [aws_s3_bucket.artifacts.arn]
+      },
+      {
         Effect = "Allow"
-        Action = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:GetBucketVersioning"]
+        Action = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"]
         Resource = [
           aws_s3_bucket.artifacts.arn,
           "${aws_s3_bucket.artifacts.arn}/*"
@@ -232,19 +419,76 @@ resource "aws_iam_role_policy" "pipeline" {
       },
       {
         Effect = "Allow"
+        Action = [
+          "ec2:Describe*",
+          "autoscaling:Describe*",
+          "autoscaling:SuspendProcesses",
+          "autoscaling:ResumeProcesses",
+          "autoscaling:UpdateAutoScalingGroup"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:ListBucket"
+        ]
+        Resource = local.eb_deploy_s3_resources
+      },
+      {
+        Effect = "Allow"
         Action = ["s3:GetObject", "s3:GetObjectVersion"]
         Resource = [
           "${aws_s3_bucket.artifacts.arn}/*",
           local.eb_managed_bucket
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:*"]
+        Resource = [
+          local.eb_managed_bucket_root,
+          "${local.eb_managed_bucket_root}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = ["cloudformation:*"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.artifacts.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "s3.${local.region}.amazonaws.com"
+          }
+        }
       }
     ]
   })
 }
 
 resource "aws_codepipeline" "this" {
-  name     = var.name
-  role_arn = aws_iam_role.pipeline.arn
+  name          = var.name
+  role_arn      = aws_iam_role.pipeline.arn
+  pipeline_type = "V2"
 
   artifact_store {
     location = aws_s3_bucket.artifacts.bucket

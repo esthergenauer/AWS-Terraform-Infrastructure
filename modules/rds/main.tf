@@ -1,3 +1,20 @@
+locals {
+  postgres_family = "postgres${split(".", var.engine_version)[0]}"
+}
+
+resource "aws_db_parameter_group" "this" {
+  name        = "${var.name}-pg"
+  family      = local.postgres_family
+  description = "PostgreSQL parameters for ${var.name}"
+
+  parameter {
+    name  = "rds.force_ssl"
+    value = "1"
+  }
+
+  tags = merge(var.tags, { Name = "${var.name}-pg" })
+}
+
 resource "aws_db_subnet_group" "this" {
   name       = "${var.name}-subnet-group"
   subnet_ids = var.subnet_ids
@@ -65,6 +82,7 @@ resource "aws_db_instance" "this" {
   port     = 5432
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
+  parameter_group_name   = aws_db_parameter_group.this.name
   vpc_security_group_ids = [aws_security_group.db_sg.id]
   publicly_accessible    = var.publicly_accessible
 
@@ -78,5 +96,6 @@ resource "aws_db_instance" "this" {
   lifecycle {
     # Never rotate RDS password via Terraform on existing databases.
     ignore_changes = [password]
+    prevent_destroy = true
   }
 }

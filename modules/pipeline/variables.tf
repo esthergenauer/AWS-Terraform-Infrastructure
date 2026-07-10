@@ -38,6 +38,12 @@ variable "github_token_secret_arn" {
   default     = null
 }
 
+variable "security_alert_secret_name" {
+  description = "Secrets Manager secret name for Slack/Discord webhook on security scan failure"
+  type        = string
+  default     = null
+}
+
 variable "codestar_connection_arn" {
   type = string
 }
@@ -62,6 +68,12 @@ variable "eb_application_name" {
 
 variable "eb_environment_name" {
   type = string
+}
+
+variable "eb_service_role_arn" {
+  description = "Elastic Beanstalk service role ARN used during deploy/CloudFormation execution"
+  type        = string
+  default     = null
 }
 
 variable "tags" {

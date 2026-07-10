@@ -18,3 +18,13 @@ output "eb_url" {
 output "pipeline_arn" {
   value = module.pipeline.pipeline_arn
 }
+
+output "bastion_instance_id" {
+  description = "SSM-managed bastion for private RDS access (Session Manager port forwarding)"
+  value       = module.bastion.instance_id
+}
+
+output "waf_web_acl_arn" {
+  description = "Regional WAF protecting the production ALB"
+  value       = try(module.waf[0].web_acl_arn, null)
+}

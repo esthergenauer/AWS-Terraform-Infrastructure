@@ -3,6 +3,11 @@ variable "aws_region" {
   default = "eu-north-1"
 }
 
+variable "project_name" {
+  type    = string
+  default = "shuli"
+}
+
 variable "common_tags" {
   type = map(string)
   default = {
@@ -118,4 +123,52 @@ variable "pipeline_artifact_bucket_name" {
 variable "buildspec_path" {
   type    = string
   default = "buildspec.yml"
+}
+
+# FinOps — scheduled ASG scaling (see finops.tf)
+variable "finops_schedule_timezone" {
+  description = "IANA timezone for scale-up / scale-down cron expressions"
+  type        = string
+  default     = "Asia/Jerusalem"
+}
+
+variable "finops_scale_down_cron" {
+  description = "Cron: scale down to 1 instance (default 23:00 local)"
+  type        = string
+  default     = "0 23 * * *"
+}
+
+variable "finops_scale_up_cron" {
+  description = "Cron: scale up to daytime minimum (default 07:00 local)"
+  type        = string
+  default     = "0 7 * * *"
+}
+
+variable "finops_night_min_size" {
+  type    = number
+  default = 1
+}
+
+variable "finops_day_min_size" {
+  description = "Daytime minimum instances (matches eb_min_instances default)"
+  type        = number
+  default     = 2
+}
+
+variable "waf_rate_limit_per_ip" {
+  description = "WAF rate limit per IP per 5 minutes (0 = disabled)"
+  type        = number
+  default     = 2000
+}
+
+variable "security_alert_secret_name" {
+  description = "Secrets Manager secret for pipeline security-failure Slack/Discord webhook"
+  type        = string
+  default     = "prod/slack-alerts-webhook"
+}
+
+variable "github_token_secret_arn" {
+  description = "Optional GitHub PAT for private frontend clone in CodeBuild"
+  type        = string
+  default     = null
 }

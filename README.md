@@ -73,4 +73,5 @@ aws ssm start-session --target <bastion_instance_id> `
 ## Documentation
 
 - Prerequisites and secrets: [`AWS_SETUP.md`](AWS_SETUP.md)
-- Architecture diagrams: [`docs/architecture/`](docs/architecture/)
+- **Master architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- Developer DB access (SSM tunnel): [`scripts/DEVELOPER_DB_ACCESS.md`](scripts/DEVELOPER_DB_ACCESS.md)

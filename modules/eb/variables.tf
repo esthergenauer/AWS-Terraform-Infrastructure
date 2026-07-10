@@ -105,3 +105,25 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "aws_region" {
+  description = "AWS region (for EB platform-assets and regional bucket ARNs)"
+  type        = string
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID (for regional EB bucket ARN)"
+  type        = string
+}
+
+variable "pipeline_artifact_bucket_name" {
+  description = "CodePipeline artifacts bucket EB must read during Deploy"
+  type        = string
+  default     = null
+}
+
+variable "publish_enhanced_health_metrics" {
+  description = "Publish selected enhanced-health metrics to CloudWatch (period must be 60). EnvironmentHealth is free; other metrics incur CloudWatch custom-metric charges."
+  type        = bool
+  default     = true
+}

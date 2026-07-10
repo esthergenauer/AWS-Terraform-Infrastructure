@@ -69,7 +69,7 @@ aws elasticbeanstalk list-available-solution-stacks --region eu-north-1 --output
 Example:
 
 ```
-eb_solution_stack_name = "64bit Amazon Linux 2023 v4.13.3 running Python 3.12"
+eb_solution_stack_name = "64bit Amazon Linux 2023 v4.13.3 running Docker"
 ```
 
 ## 6. RDS password

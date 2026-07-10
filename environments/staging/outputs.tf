@@ -48,3 +48,26 @@ output "pipeline_arn" {
 output "pipeline_name" {
   value = var.pipeline_name
 }
+
+# --- Observability (see monitoring.tf) ---
+output "staging_alerts_sns_topic_arn" {
+  description = "SNS topic that receives all staging CloudWatch alarms"
+  value       = aws_sns_topic.staging_alerts.arn
+}
+
+output "slack_alerts_lambda_name" {
+  description = "Lambda that posts CloudWatch alarms to Slack"
+  value       = aws_lambda_function.slack_alerts.function_name
+}
+
+output "monitoring_alarm_names" {
+  description = "CloudWatch alarm names provisioned for staging"
+  value = compact([
+    try(aws_cloudwatch_metric_alarm.eb_high_cpu[0].alarm_name, null),
+    aws_cloudwatch_metric_alarm.eb_http_5xx.alarm_name,
+    try(aws_cloudwatch_metric_alarm.eb_status_check_failed[0].alarm_name, null),
+    aws_cloudwatch_metric_alarm.eb_environment_health.alarm_name,
+    try(aws_cloudwatch_metric_alarm.eb_root_filesystem[0].alarm_name, null),
+    aws_cloudwatch_metric_alarm.rds_low_storage.alarm_name,
+  ])
+}

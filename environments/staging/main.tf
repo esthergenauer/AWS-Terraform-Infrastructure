@@ -13,6 +13,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 }
 
@@ -106,6 +110,11 @@ module "eb" {
   instance_type       = var.eb_instance_type
   environment_type    = "SingleInstance" # Staging: no load balancer
 
+  aws_region     = var.aws_region
+  aws_account_id = data.aws_caller_identity.current.account_id
+
+  pipeline_artifact_bucket_name = var.pipeline_artifact_bucket_name
+
   vpc_id                      = local.vpc_id
   security_group_id           = aws_security_group.beanstalk.id
   instance_subnet_ids         = local.subnet_ids
@@ -139,10 +148,13 @@ module "pipeline" {
   github_token_secret_arn = var.github_token_secret_arn
   codestar_connection_arn = var.codestar_connection_arn
   artifact_bucket_name    = var.pipeline_artifact_bucket_name
-  buildspec_path          = var.buildspec_path
+  buildspec_path          = file("${path.module}/../../examples/buildspec.yml")
 
   eb_application_name = module.eb.application_name
   eb_environment_name = module.eb.environment_name
+  eb_service_role_arn = module.eb.service_role_arn
+
+  security_alert_secret_name = "staging/slack-alerts-webhook"
 
   tags = local.tags
 

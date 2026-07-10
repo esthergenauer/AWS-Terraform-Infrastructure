@@ -11,6 +11,98 @@ locals {
   )
 
   environment_variables = merge(local.base_env_vars, var.additional_environment_variables)
+
+  # AWS only accepts period=60 for enhanced-health CloudWatch publishing.
+  # null = do not publish; 60 = publish every minute.
+  # Keep this list focused on metrics we alarm on (cost-aware).
+  health_config_document = jsonencode({
+    Version = 1
+    CloudWatchMetrics = {
+      Environment = {
+        ApplicationRequests5xx = 60
+        ApplicationRequests4xx = 60
+      }
+      Instance = {
+        RootFilesystemUtil = 60
+      }
+    }
+  })
+}
+
+resource "aws_iam_role" "service" {
+  name = "${var.environment_name}-eb-service-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "elasticbeanstalk.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = merge(var.tags, { Name = "${var.environment_name}-eb-service-role" })
+}
+
+resource "aws_iam_role_policy_attachment" "service_managed" {
+  role       = aws_iam_role.service.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkService"
+}
+
+resource "aws_iam_role_policy_attachment" "service_enhanced_health" {
+  role       = aws_iam_role.service.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth"
+}
+
+locals {
+  pipeline_artifact_s3_resources = var.pipeline_artifact_bucket_name != null ? [
+    "arn:aws:s3:::${var.pipeline_artifact_bucket_name}",
+    "arn:aws:s3:::${var.pipeline_artifact_bucket_name}/*"
+  ] : []
+
+  service_s3_deploy_resources = concat(
+    [
+      "arn:aws:s3:::elasticbeanstalk-platform-assets-${var.aws_region}",
+      "arn:aws:s3:::elasticbeanstalk-platform-assets-${var.aws_region}/*",
+      "arn:aws:s3:::elasticbeanstalk-${var.aws_region}-${var.aws_account_id}",
+      "arn:aws:s3:::elasticbeanstalk-${var.aws_region}-${var.aws_account_id}/*"
+    ],
+    local.pipeline_artifact_s3_resources
+  )
+}
+
+resource "aws_iam_role_policy" "service_s3_deploy" {
+  name = "${var.environment_name}-eb-service-s3-deploy"
+  role = aws_iam_role.service.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:ListBucket"
+        ]
+        Resource = local.service_s3_deploy_resources
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "s3.${var.aws_region}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
 }
 
 resource "aws_iam_role" "ec2" {
@@ -138,6 +230,30 @@ resource "aws_elastic_beanstalk_environment" "this" {
     namespace = "aws:elasticbeanstalk:environment"
     name      = "EnvironmentType"
     value     = var.environment_type
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:environment"
+    name      = "ServiceRole"
+    value     = aws_iam_role.service.name
+  }
+
+  # Enhanced health reporting (already typical on modern platforms; set explicitly).
+  setting {
+    namespace = "aws:elasticbeanstalk:healthreporting:system"
+    name      = "SystemType"
+    value     = "enhanced"
+  }
+
+  # Publish selected enhanced-health metrics to CloudWatch so alarms receive data.
+  # Safe config-only update: does not replace instances or rotate credentials.
+  dynamic "setting" {
+    for_each = var.publish_enhanced_health_metrics ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:healthreporting:system"
+      name      = "ConfigDocument"
+      value     = local.health_config_document
+    }
   }
 
   dynamic "setting" {
