@@ -16,10 +16,10 @@ Production has **no bastion** — application access is from Elastic Beanstalk o
 
 ## 1. Local development (no AWS)
 
-Use the workspace `docker-compose.yml`:
+Use `sbl-backend/docker-compose.yml`:
 
 ```powershell
-cd "<workspace-root>"
+cd sbl-backend
 docker compose up -d
 ```
 
@@ -45,21 +45,24 @@ Connection:
 
 ### Open tunnel (keep terminal open)
 
+**Recommended — use the helper script:**
+
+| OS | Script |
+|----|--------|
+| Windows | [`connect-staging-db.bat`](connect-staging-db.bat) — double-click or run from CMD |
+| macOS / Linux | [`connect-staging-db.sh`](connect-staging-db.sh) — `chmod +x connect-staging-db.sh && ./connect-staging-db.sh` |
+
+Manual command (same as the scripts):
+
 ```powershell
 aws ssm start-session `
-  --target <bastion_instance_id> `
+  --target i-069242cd0301a2c7e `
   --region eu-north-1 `
   --document-name AWS-StartPortForwardingSessionToRemoteHost `
-  --parameters host="<rds-endpoint-without-port>",portNumber="5432",localPortNumber="5432"
+  --parameters host="shuli-staging-db.cn6uwqem6nuu.eu-north-1.rds.amazonaws.com",portNumber="5432",localPortNumber="5432"
 ```
 
-Get IDs from Terraform output after `terraform apply`:
-
-```powershell
-cd sbl-infrastructure/environments/staging
-terraform output bastion_instance_id
-terraform output rds_endpoint
-```
+> **Port conflict (Windows):** If you have local PostgreSQL on port 5432, change `localPortNumber` to `5433` in the script and connect pgAdmin to `localhost:5433`.
 
 ### pgAdmin / DBeaver
 

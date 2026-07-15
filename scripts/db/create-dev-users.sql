@@ -1,7 +1,0 @@
--- DEPRECATED — do not use this file.
--- It contained example passwords and legacy database names (commando_dev).
---
--- Use instead:
---   init-databases.sql
---   create-developer-role.template.sql
---   ../DEVELOPER_DB_ACCESS.md

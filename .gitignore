@@ -36,6 +36,8 @@ Thumbs.db
 environments/*/lambda/**/*.zip
 
 # --- Local plan output / Python cache ---
+terraform-plan-*.txt
+terraform-apply-*.log
 environments/*/terraform-plan-*.txt
 environments/*/tfplan-*
 scripts/__pycache__/

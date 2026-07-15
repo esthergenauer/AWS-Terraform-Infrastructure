@@ -106,7 +106,7 @@ Org checklist aliases: `sbl_staging` / `sbl_production` → deployed names above
 
 | Use case | Method |
 |----------|--------|
-| Local dev | `docker-compose.yml` → `postgres:16` |
+| Local dev | `sbl-backend/docker-compose.yml` → `postgres:16` |
 | Staging cloud | SSM port forward via bastion (see `scripts/DEVELOPER_DB_ACCESS.md`) |
 | Application | `DB_HOST` / `DB_SECRET_ARN` on EB |
 
@@ -153,7 +153,7 @@ Developers add app secrets via `scripts/add_secret.py` (never Git).
 
 ## 8. Local Development
 
-1. `docker compose up -d` (workspace root)
+1. `cd sbl-backend && docker compose up -d`
 2. Copy `.env.example` → `.env` in backend and frontend repos
 3. Backend: `uvicorn app.main:app --reload --port 8000`
 4. Frontend: `npm run dev`

@@ -1,6 +1,6 @@
 היי [שם],
 
-חיבור ל-Staging DB — Commando (דרך tunnel, בלי לפתוח IP):
+חיבור ל-Staging DB — SBL (דרך SSM Tunnel — הדרך המומלצת)
 
 === חד-פעמי: התקנה ===
 1. AWS CLI: https://aws.amazon.com/cli/
@@ -9,23 +9,27 @@
 3. בטרמינל:
    aws configure
    Region: eu-north-1
-   Access Key + Secret: [אסתי שולחת בפרטי — משותף לצוות]
+   Access Key + Secret: [אסתי שולחת בפרטי — משתמש sbl-dev-tunnel]
 
-=== לפני כל עבודה ב-pgAdmin ===
-פתחי טרמינל והשאירי אותו פתוח:
+=== לפני כל עבודה ב-pgAdmin — פתחי Tunnel (השאירי את הטרמינל פתוח!) ===
 
-aws ssm start-session --target i-05893e16c1b698e8e --region eu-north-1 --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters host="shuli-staging-db.cn6uwqem6nuu.eu-north-1.rds.amazonaws.com",portNumber="5432",localPortNumber="5432"
+aws ssm start-session --target i-069242cd0301a2c7e --region eu-north-1 --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters host="shuli-staging-db.cn6uwqem6nuu.eu-north-1.rds.amazonaws.com",portNumber="5432",localPortNumber="5433"
+
+(אם אין Postgres מקומי על המחשב — אפשר localPortNumber="5432" במקום 5433)
 
 === pgAdmin — Register Server ===
 Host:     localhost
-Port:     5432
-Database: commando_dev
-Username: [dev_avigail / dev_hila / ...]
+Port:     5433
+Database: shuli_staging
+Username: [dev_avigail / dev_hila / dev_malky / dev_sara / dev_shira / dev_ayala]
 Password: [אסתי שולחת בפרטי]
-SSL:      Prefer
+SSL mode: Require
 Root certificate: https://truststore.pki.rds.amazonaws.com/eu-north-1/eu-north-1-bundle.pem
 
 === חשוב ===
-- הטרמינל עם ה-tunnel חייב להישאר פתוח
-- אין timeout מ-IP — לא צריך לשלוח IP לאסתי
+- הטרמינל עם ה-tunnel חייב להישאר פתוח כל זמן העבודה
+- Database: shuli_staging (לא commando_dev)
+- SSL: Require
 - Repo: StarUP-Solutions/sbl-backend | Branch: staging
+
+=== לא צריך לשלוח IP — ה-tunnel עובד מכל מקום ===
