@@ -41,3 +41,4 @@ terraform-apply-*.log
 environments/*/terraform-plan-*.txt
 environments/*/tfplan-*
 scripts/__pycache__/
+scripts/developer-usernames.txt

@@ -1,27 +1,60 @@
 # AWS Infrastructure for SBL
 
-**Production-grade AWS infrastructure as code** for a multi-environment SaaS platform (SBL / Shuli) — built with Terraform, secured by design, and wired for real CI/CD and observability.
+**Terraform / AWS IaC** for a multi-environment **SaaS-style** platform (SBL / Shuli): staging + production, secure access, automated CI/CD, observability, and cost-aware production schedules.
 
 [![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![AWS](https://img.shields.io/badge/Cloud-AWS-FF9900?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 [![Region](https://img.shields.io/badge/Region-eu--north--1-232F3E)](https://aws.amazon.com/about-aws/global-infrastructure/)
-[![License](https://img.shields.io/badge/Focus-DevOps%20%7C%20Security%20%7C%20FinOps-0A66C2)](#highlights)
 
-> Portfolio project showcasing end-to-end cloud infrastructure: staging + production, secure developer access, automated deployments, monitoring, and cost-aware production schedules.
+> Portfolio copy. Real secrets are not included.
+
+---
+
+## Context
+
+This was my **first hands-on task** in a DevOps practicum (**July 2026**).
+
+The ask: infrastructure for a **managed SaaS system**, automated as much as possible, with **DEV/Staging** and **Production**.
+
+Beyond the checklist, I chose to make it **generic**: shared logic in **modules**; each site/project should mostly need a new **environment** (variables + secrets) — not a rewrite.  
+In practice Shuli already uses that pattern: **two environments, same modules, mostly different inputs**.
+
+I also pushed further on **security**, **monitoring/alerting**, and **FinOps** — so the repo shows design thinking, not only “infra that runs.”
+
+---
+
+## My design choices
+
+| Choice | What I added beyond the base ask |
+|--------|-----------------------------------|
+| **Generic modules** | Reuse across future projects; env folders stay thin |
+| **Secrets that I don’t have to “know”** | DB master password can be **generated** (`random_password`), stored in **Secrets Manager**, and read by the app via **secret ARN + IAM** |
+| **SSM tunnel access** | Developers reach RDS via **Session Manager port-forward** — not by opening the DB to the internet |
+| **Prod hardening** | SSL enforced on RDS, **WAF** on the ALB, stricter prod posture |
+| **Observability** | **CloudWatch → SNS → Lambda → Slack**, plus **Grafana Cloud** (AssumeRole) |
+| **FinOps** | Production **ASG schedules** (scale down at night / up in the morning) |
+
+---
+
+## Working with AI (AI-native, not AI-replaced)
+
+I work in an **AI-native** way: I use **Cursor** and consult **Gemini** to understand options, learn DevSecOps/FinOps ideas, debug faster, and improve docs.
+
+That is **not** copy-paste. I use AI to **think with** — while **I** own the architecture, the generic design, the security/monitoring choices, and the final implementation.
 
 ---
 
 ## Highlights
 
-| Area | What this repo demonstrates |
-|------|-----------------------------|
+| Area | What’s in this repo |
+|------|---------------------|
 | **IaC** | Modular Terraform (environments + reusable modules) |
 | **Compute** | Elastic Beanstalk (Docker) — SingleInstance staging, ALB + Auto Scaling production |
-| **Data** | RDS PostgreSQL with encryption, SSL enforcement, Secrets Manager |
+| **Data** | RDS PostgreSQL — encryption, `force_ssl`, Secrets Manager |
 | **CI/CD** | CodePipeline + CodeBuild (Source → Build → Deploy) |
-| **Security** | SSM bastion (no SSH), least-privilege IAM, WAF on prod ALB, DevSecOps scanning |
-| **Observability** | CloudWatch → SNS → Lambda → Slack + Grafana Cloud (cross-account AssumeRole) |
-| **FinOps** | Night/morning ASG schedules in production to control cost |
+| **Security** | SSM bastion (no SSH), least-privilege IAM, WAF on prod ALB, pipeline scanning |
+| **Observability** | CloudWatch → SNS → Lambda → Slack + Grafana Cloud |
+| **FinOps** | Night/morning ASG schedules in production |
 
 ---
 
@@ -31,13 +64,12 @@
                     GitHub (backend + frontend)
                               │
                               ▼
-                   AWS CodePipeline (V2)
+                   AWS CodePipeline
                    Source → Build → Deploy
                               │
                               ▼
               ┌───────────────────────────────┐
               │  Elastic Beanstalk (Docker)    │
-              │  FastAPI + React static bundle │
               │  Staging: SingleInstance       │
               │  Prod: ALB + Auto Scaling      │
               └───────────────┬───────────────┘
@@ -49,26 +81,12 @@
               │  Credentials in Secrets Manager│
               └───────────────────────────────┘
 
-Developers ── SSM Session Manager ──► Bastion ──► RDS (port-forward)
+Developers ── SSM Session Manager ──► Bastion ──► RDS (port-forward tunnel)
 Ops alerts ── CloudWatch Alarms ──► SNS → Lambda → Slack
 Dashboards ── Grafana Cloud ──► AssumeRole → CloudWatch metrics/logs
 ```
 
 Full topology: [`ARCHITECTURE.md`](ARCHITECTURE.md)
-
----
-
-## Tech stack
-
-| Layer | Technologies |
-|-------|----------------|
-| Infrastructure | Terraform ≥ 1.5, AWS Provider ~> 5.0 |
-| Compute | Elastic Beanstalk (Docker), EC2 (SSM bastion) |
-| Database | Amazon RDS PostgreSQL 15 |
-| Networking | Default VPC, Security Groups, (optional custom VPC module) |
-| Delivery | CodePipeline, CodeBuild, CodeStar Connection |
-| Security | IAM least privilege, Secrets Manager, WAFv2 (OWASP), Trivy / TruffleHog |
-| Monitoring | CloudWatch Alarms, SNS, Lambda, Slack, Grafana Cloud |
 
 ---
 
@@ -79,7 +97,7 @@ Full topology: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 | Elastic Beanstalk | SingleInstance · `t4g.micro` | LoadBalanced ALB · `t4g.small` · 2–4 instances |
 | RDS | `db.t4g.micro` · Single-AZ | `db.t4g.small` · Multi-AZ · 30-day backups |
 | Pipeline branch | `staging` | `main` |
-| SSM bastion | Yes | Yes |
+| SSM bastion / tunnel | Yes | Yes |
 | Slack monitoring | Yes | Planned |
 | Grafana Cloud IAM | Yes | Planned |
 | WAF | — | OWASP managed rules on ALB |
@@ -91,55 +109,28 @@ Full topology: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ```
 AWS-infrastructure-for-SBL/
-├── ARCHITECTURE.md                 # System topology & security model
-├── AWS_SETUP.md                    # Bootstrap & secrets setup
-├── modules/
-│   ├── bastion/                    # SSM bastion (no public SSH)
-│   ├── eb/                         # Elastic Beanstalk + IAM
-│   ├── network/                    # VPC module (available; default VPC in use)
-│   ├── pipeline/                   # CodePipeline + CodeBuild
-│   ├── rds/                        # PostgreSQL + SSL parameter group
-│   └── waf/                        # WAFv2 for production ALB
+├── ARCHITECTURE.md
+├── AWS_SETUP.md
+├── modules/          # bastion, eb, network, pipeline, rds, waf
 ├── environments/
-│   ├── staging/                    # EB, RDS, pipeline, monitoring, Grafana IAM
-│   └── prod/                       # LoadBalanced EB, Multi-AZ RDS, WAF, FinOps
-├── scripts/                        # Developer DB access, secrets helpers
-├── iam/                            # Static IAM policy documents
-└── examples/                       # buildspec & env examples
+│   ├── staging/      # + monitoring, Grafana IAM
+│   └── prod/         # + WAF, FinOps schedules
+├── scripts/
+├── iam/
+└── examples/
 ```
 
 ---
 
-## Security practices (by design)
+## Security practices (implemented)
 
-- **No public database** — RDS reachable only from EB + SSM bastion
+- **No public database** — RDS only from EB + SSM bastion path
 - **SSL required** — `rds.force_ssl = 1`
-- **Secrets stay out of Git** — Secrets Manager + gitignored `*.tfvars` + runtime `TF_VAR_*`
-- **Bastion without SSH ingress** — AWS Systems Manager Session Manager only
-- **Cross-account Grafana** — `sts:AssumeRole` + External ID (confused-deputy protection)
+- **Secrets Manager** — generated/stored credentials; app uses secret ARN + IAM (not a password living in Git)
+- **Bastion without SSH ingress** — Session Manager only + port-forward tunnel
+- **Cross-account Grafana** — `sts:AssumeRole` + External ID
 - **Production WAF** — managed rule groups on the ALB
-- **Pipeline scanning** — Trivy / TruffleHog gates in the application buildspec
-
----
-
-## Quick start
-
-```powershell
-# 1. Clone
-git clone https://github.com/EstiGenauer/AWS-infrastructure-for-SBL.git
-cd AWS-infrastructure-for-SBL\environments\staging
-
-# 2. Configure (never commit real secrets)
-copy secrets.auto.tfvars.example secrets.auto.tfvars
-# Edit secrets.auto.tfvars with your account values
-
-# 3. Apply
-terraform init
-terraform plan
-terraform apply
-```
-
-Prerequisites and secret handling: [`AWS_SETUP.md`](AWS_SETUP.md)
+- **Pipeline scanning** — Trivy / TruffleHog in the application buildspec
 
 ---
 
@@ -148,55 +139,29 @@ Prerequisites and secret handling: [`AWS_SETUP.md`](AWS_SETUP.md)
 ```
 AWS CloudWatch (metrics + logs)
         │
-        ├──► Alarms → SNS → Lambda → Slack     (ops paging)
+        ├──► Alarms → SNS → Lambda → Slack
         │
         └──► Grafana Cloud  ←── sts:AssumeRole
-             (dashboards, Explore, health checks)
 ```
 
-- Staging runbook: [`environments/staging/README.md`](environments/staging/README.md)
-- Slack alarms: [`environments/staging/MONITORING.md`](environments/staging/MONITORING.md)
+- [`environments/staging/MONITORING.md`](environments/staging/MONITORING.md)
+- [`environments/staging/README.md`](environments/staging/README.md) (Grafana IAM)
 
 ---
 
-## Developer database access (staging)
-
-Secure local access via SSM port-forwarding (no open DB ports on the internet):
+## Quick start
 
 ```powershell
-aws ssm start-session --target <bastion_instance_id> `
-  --document-name AWS-StartPortForwardingSessionToRemoteHost `
-  --parameters host="<rds-host>",portNumber="5432",localPortNumber="5432"
+git clone https://github.com/esthergenauer/AWS-infrastructure-for-SBL.git
+cd AWS-infrastructure-for-SBL\environments\staging
+copy secrets.auto.tfvars.example secrets.auto.tfvars
+terraform init
+terraform plan
+terraform apply
 ```
 
-Guide: [`scripts/DEVELOPER_DB_ACCESS.md`](scripts/DEVELOPER_DB_ACCESS.md)
+See [`AWS_SETUP.md`](AWS_SETUP.md).
 
 ---
 
-## Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | End-to-end topology |
-| [`AWS_SETUP.md`](AWS_SETUP.md) | IAM, CodeStar, tfvars bootstrap |
-| [`environments/staging/README.md`](environments/staging/README.md) | Grafana Cloud IAM runbook |
-| [`environments/staging/MONITORING.md`](environments/staging/MONITORING.md) | CloudWatch → Slack |
-| [`scripts/DEVELOPER_DB_ACCESS.md`](scripts/DEVELOPER_DB_ACCESS.md) | SSM tunnel + per-dev DB roles |
-| [`scripts/SECURITY_SCANNING.md`](scripts/SECURITY_SCANNING.md) | Trivy / TruffleHog pipeline gate |
-
----
-
-## Skills demonstrated
-
-- Designing **multi-environment** AWS architectures (staging vs production trade-offs)
-- Writing **reusable Terraform modules** and environment compositions
-- Implementing **secure access patterns** (SSM, least-privilege IAM, Secrets Manager)
-- Building **CI/CD** on AWS (CodePipeline / CodeBuild)
-- Wiring **alerting and dashboards** (CloudWatch, Slack, Grafana Cloud)
-- Applying **FinOps** controls (scheduled scale-in/out)
-
----
-
-<p align="center">
-  <sub>Built as a DevOps / Cloud portfolio project · Infrastructure as Code on AWS</sub>
-</p>
+**Esther Genauer** · Junior DevOps / Cloud Infrastructure
